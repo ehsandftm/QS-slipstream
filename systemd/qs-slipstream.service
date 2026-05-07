@@ -2,7 +2,6 @@
 Description=QS-Tunnel Client with Slipstream uplink
 After=network-online.target slipstream-client.service
 Wants=network-online.target
-Requires=slipstream-client.service
 
 [Service]
 Type=simple

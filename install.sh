@@ -104,7 +104,7 @@ echo
 # ─────────────────────────────────────────────
 echo "[+] Installing dependencies..."
 apt-get update -y -qq
-apt-get install -y -qq software-properties-common curl git openssl
+apt-get install -y -qq software-properties-common curl git openssl psmisc
 
 if ! command -v python3.11 >/dev/null 2>&1; then
   echo "[+] Installing Python 3.11..."
