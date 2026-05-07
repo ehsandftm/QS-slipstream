@@ -1,0 +1,17 @@
+[Unit]
+Description=Slipstream Server port 5304 for new QS uplink
+After=network-online.target qs-slip-server.service
+Wants=network-online.target
+Requires=qs-slip-server.service
+
+[Service]
+Type=simple
+WorkingDirectory=/root
+ExecStart=/root/slipstream-server -l 5304 -d q.firmware-update-service.com -a 127.0.0.1:5210 -c /root/slipstream-certs/cert.pem -k /root/slipstream-certs/key.pem
+Restart=always
+RestartSec=2
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

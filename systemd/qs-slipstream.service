@@ -1,0 +1,18 @@
+[Unit]
+Description=QS-Tunnel Client with Slipstream uplink
+After=network-online.target slipstream-client.service
+Wants=network-online.target
+Requires=slipstream-client.service
+
+[Service]
+Type=simple
+WorkingDirectory=/root/QS-Tunnel
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/python3.11 /root/QS-Tunnel/main_client_slip.py
+Restart=always
+RestartSec=2
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,21 @@
+[Unit]
+Description=Slipstream Client
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root
+ExecStart=/root/slipstream-client-rust \
+  -r 8.8.8.8:53 \
+  -r 8.8.4.4:53 \
+  -r 1.1.1.1:53 \
+  -d __SLIP_DOMAIN__ \
+  -l 5201
+Restart=always
+RestartSec=2
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,11 @@
+.claude/
+Commands/
+files/__pycache__/
+files/utility/__pycache__/
+files/slipstream-client
+files/config_client_slip.json
+files/config_server_slip.json
+files/config_relay.json
+files/data_cap.py
+files/dns_relay.py
+CLAUDE.md

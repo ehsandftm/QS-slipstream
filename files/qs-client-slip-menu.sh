@@ -1,0 +1,351 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SERVICE_QS="qs-slipstream"
+SERVICE_SLIP="slipstream-client"
+CONFIG="/root/QS-Tunnel/config_client_slip.json"
+SVC_FILE="/etc/systemd/system/slipstream-client.service"
+PYTHON="/usr/bin/python3.11"
+
+pause() {
+  echo
+  read -r -p "Press Enter to continue..."
+}
+
+get_val() {
+  "${PYTHON}" - <<PY
+import json
+with open("${CONFIG}") as f:
+    v = json.load(f).get("$1","")
+    print(v if v != "" else "")
+PY
+}
+
+set_str() {
+  "${PYTHON}" - <<PY
+import json
+p="${CONFIG}"
+d=json.load(open(p))
+d["$1"]="$2"
+json.dump(d,open(p,"w"),indent=2)
+print("Updated: $1 = $2")
+PY
+}
+
+set_int() {
+  "${PYTHON}" - <<PY
+import json
+p="${CONFIG}"
+d=json.load(open(p))
+d["$1"]=int("$2")
+json.dump(d,open(p,"w"),indent=2)
+print("Updated: $1 = $2")
+PY
+}
+
+svc_get_resolvers() {
+  grep -oP '(?<=-r )\S+' "$SVC_FILE" 2>/dev/null | sed 's/\\$//' | grep -v '^$' | tr '\n' ' ' | sed 's/ $//' || echo ""
+}
+
+svc_get_domain() {
+  grep -oP '(?<=-d )\S+' "$SVC_FILE" 2>/dev/null | head -1 || echo ""
+}
+
+svc_get_cert() {
+  grep -oP '(?<=--cert )\S+' "$SVC_FILE" 2>/dev/null | head -1 || echo ""
+}
+
+svc_get_port() {
+  grep -oP '(?<=-l )\S+' "$SVC_FILE" 2>/dev/null | head -1 || echo "5201"
+}
+
+svc_is_direct() {
+  grep -q -- '--authoritative' "$SVC_FILE" 2>/dev/null
+}
+
+svc_get_uplink_mode() {
+  if svc_is_direct; then
+    echo "DIRECT  -> $(grep -oP '(?<=--authoritative )\S+' "$SVC_FILE" 2>/dev/null)"
+  else
+    local r; r=$(svc_get_resolvers)
+    echo "DNS resolver  -> ${r:-(none set)}"
+  fi
+}
+
+svc_write() {
+  local mode="$1"   # "resolver" or "direct"
+  local target="$2" # resolvers (space-sep) or direct addr
+  local domain cert port cert_line
+
+  domain=$(svc_get_domain)
+  cert=$(svc_get_cert)
+  port=$(svc_get_port)
+
+  # Only add --cert flag if a cert path is configured
+  if [ -n "$cert" ] && [ "$cert" != "(none)" ]; then
+    cert_line="  --cert $cert \\"
+  else
+    cert_line=""
+  fi
+
+  {
+    cat <<EOF
+[Unit]
+Description=Slipstream Client
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root
+ExecStart=/root/slipstream-client-rust \\
+EOF
+    if [ "$mode" = "direct" ]; then
+      echo "  --authoritative $target \\"
+    else
+      for r in $target; do
+        echo "  -r $r \\"
+      done
+    fi
+    [ -n "$cert_line" ] && echo "$cert_line"
+    cat <<EOF
+  -d $domain \\
+  -l $port
+Restart=always
+RestartSec=2
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+EOF
+  } > "$SVC_FILE"
+
+  systemctl daemon-reload
+}
+
+start_all() {
+  systemctl start "$SERVICE_SLIP"
+  sleep 1
+  systemctl start "$SERVICE_QS"
+  echo "Services started."
+}
+
+stop_all() {
+  systemctl stop "$SERVICE_QS" || true
+  systemctl stop "$SERVICE_SLIP" || true
+  echo "Services stopped."
+}
+
+restart_all() {
+  systemctl restart "$SERVICE_SLIP"
+  sleep 1
+  systemctl restart "$SERVICE_QS"
+  echo "Services restarted."
+}
+
+status_all() {
+  echo "===== $SERVICE_SLIP ====="
+  systemctl status "$SERVICE_SLIP" --no-pager -n 5
+  echo
+  echo "===== $SERVICE_QS ====="
+  systemctl status "$SERVICE_QS" --no-pager -n 5
+}
+
+logs_all() {
+  echo "===== $SERVICE_SLIP logs ====="
+  journalctl -u "$SERVICE_SLIP" -n 40 --no-pager
+  echo
+  echo "===== $SERVICE_QS logs ====="
+  journalctl -u "$SERVICE_QS" -n 40 --no-pager
+}
+
+follow_logs() {
+  journalctl -u "$SERVICE_SLIP" -u "$SERVICE_QS" -f
+}
+
+show_config() {
+  echo "===== QS+Slipstream Client Config ====="
+  echo
+  echo "  -- Downlink (spoofed replies to your client) --"
+  echo "  1) Hysteria listen port = $(get_val h_in_address | cut -d: -f2)"
+  echo "  2) My public IP         = $(get_val my_public_ip)"
+  echo "  3) Spoof source IP      = $(get_val fake_send_ip)"
+  echo "  4) Spoof source port    = $(get_val fake_send_port)"
+  echo
+  echo "  -- Uplink (QUIC tunnel through DNS) --"
+  echo "  5) Uplink mode          = $(svc_get_uplink_mode)"
+  echo "  6) DNS resolvers        = $(svc_get_resolvers)"
+  echo "  7) Tunnel domain        = $(svc_get_domain)"
+  echo "  8) Server cert pin      = $(svc_get_cert)    (optional)"
+  echo
+  echo "  -- Security --"
+  echo "  9) Encryption pass      = $(get_val info_encryption_pass)    (plain text, must match Serbia item 5)"
+}
+
+menu_edit() {
+while true; do
+clear
+echo "===== QS+Slipstream Client Config ====="
+echo
+echo "  -- Downlink (spoofed replies to your client) --"
+echo "  1) Hysteria listen port = $(get_val h_in_address | cut -d: -f2)    (your VPN app connects to this port)"
+echo "  2) My public IP         = $(get_val my_public_ip)    (this server's real public IP)"
+echo "  3) Spoof source IP      = $(get_val fake_send_ip)    (Serbia replies pretending to be this IP)"
+echo "  4) Spoof source port    = $(get_val fake_send_port)    (Serbia replies pretending to be this port)"
+echo
+echo "  -- Uplink (QUIC tunnel through DNS) --"
+echo "  5) Uplink mode          = $(svc_get_uplink_mode)"
+echo "  6) DNS resolvers        = $(svc_get_resolvers)"
+echo "  7) Tunnel domain        = $(svc_get_domain)"
+echo "  8) Server cert pin      = $(svc_get_cert)    (optional — leave blank = no pinning)"
+echo
+echo "  -- Security --"
+echo "  9) Encryption pass      = $(get_val info_encryption_pass)    (plain text, must match Serbia server item 5)"
+echo
+echo "  0) Back"
+echo
+read -rp "Select: " c
+
+case "$c" in
+1)
+  read -rp "New Hysteria listen port [e.g. 54322]: " v
+  set_str h_in_address "0.0.0.0:$v"
+  echo "Note: restart services to apply."
+  pause
+  ;;
+2)
+  echo "  Enter the public IP of THIS Iran server."
+  echo "  Or type: ezping  (auto-detect from ezping.ir)"
+  echo "  Or type: ipmyp   (auto-detect from ipmyp.ir)"
+  read -rp "New my_public_ip: " v
+  set_str my_public_ip "$v"
+  pause
+  ;;
+3)
+  echo "  This is the IP Serbia will use as the fake sender on spoofed replies."
+  echo "  Usually the VPS IP or a nearby IP your client will accept packets from."
+  read -rp "New spoof source IP: " v
+  set_str fake_send_ip "$v"
+  pause
+  ;;
+4)
+  echo "  Port Serbia uses as fake sender port on spoofed replies (usually 53)."
+  read -rp "New spoof source port: " v
+  set_int fake_send_port "$v"
+  pause
+  ;;
+5)
+  echo "  d) DNS resolver mode  (Iran -> public DNS like 8.8.8.8 -> Serbia)"
+  echo "     Bypasses Iran blocking. Slower upload (~200-500 kbps), higher latency."
+  echo "  a) DIRECT mode        (Iran -> Serbia:53 directly)"
+  echo "     Faster upload (~1 Mbps+), lower latency. Only works if Serbia:53 is not blocked."
+  echo
+  read -rp "Select mode [d/a]: " m
+  case "$m" in
+    d|D)
+      read -rp "DNS resolvers (space-separated, e.g. 8.8.8.8:53 8.8.4.4:53 1.1.1.1:53): " v
+      svc_write "resolver" "$v"
+      echo "Switched to DNS resolver mode. Run Restart (option 3) to apply."
+      pause
+      ;;
+    a|A)
+      read -rp "Serbia server address (e.g. 150.40.126.106:53): " v
+      svc_write "direct" "$v"
+      echo "Switched to DIRECT mode. Run Restart (option 3) to apply."
+      pause
+      ;;
+    *) echo "Invalid"; sleep 1;;
+  esac
+  ;;
+6)
+  echo "  Current: $(svc_get_resolvers)"
+  echo "  These are the public DNS servers QUIC packets are routed through."
+  echo "  Examples: 8.8.8.8:53  8.8.4.4:53  1.1.1.1:53"
+  echo "  (Only applies in DNS resolver mode)"
+  read -rp "New resolvers (space-separated): " v
+  svc_write "resolver" "$v"
+  echo "Updated. Run Restart (option 3) to apply."
+  pause
+  ;;
+7)
+  echo "  The DNS domain that QUIC is tunneled through."
+  echo "  Must have NS record pointing to Serbia VPS."
+  echo "  Current: $(svc_get_domain)"
+  read -rp "New tunnel domain: " v
+  sed -i "s|-d [^ \\\\]*|-d $v|" "$SVC_FILE"
+  systemctl daemon-reload
+  echo "Updated. Run Restart (option 3) to apply."
+  pause
+  ;;
+8)
+  echo "  OPTIONAL: Serbia's TLS certificate path for QUIC identity verification."
+  echo "  Prevents a man-in-the-middle attack on the DNS tunnel."
+  echo "  The cert file must be copied from Serbia to this server manually."
+  echo "  Serbia cert location: /root/slipstream-certs/cert-san.pem"
+  echo "  Leave blank to disable pinning (connection still encrypted, just not pinned)."
+  echo "  Current: $(svc_get_cert)"
+  echo
+  read -rp "New cert path (or leave blank to disable): " v
+  if [ -z "$v" ]; then
+    # Remove --cert line from service file entirely
+    sed -i '/--cert /d' "$SVC_FILE"
+    systemctl daemon-reload
+    echo "Cert pinning disabled."
+  else
+    if grep -q -- '--cert' "$SVC_FILE"; then
+      sed -i "s|--cert [^ \\\\]*|--cert $v|" "$SVC_FILE"
+    else
+      sed -i "/ExecStart=.*slipstream-client-rust/a\\  --cert $v \\\\" "$SVC_FILE"
+    fi
+    systemctl daemon-reload
+    echo "Updated. Run Restart (option 3) to apply."
+  fi
+  pause
+  ;;
+9)
+  echo "  Plain text password shared between Iran client and Serbia server."
+  echo "  Used to encrypt the INFO packet that tells Serbia where to send"
+  echo "  spoofed downlink replies (your real IP + port)."
+  echo "  Same as item 5 on the Serbia server menu."
+  echo "  Format: any plain text string, e.g: mysecretpass123"
+  echo "  Leave blank = no encryption (fine for private setups)."
+  read -rp "New encryption pass (or blank to clear): " v
+  set_str info_encryption_pass "$v"
+  pause
+  ;;
+0) break;;
+*) echo "Invalid"; sleep 1;;
+esac
+done
+}
+
+while true; do
+clear
+echo "===== QS+Slipstream Client ====="
+echo "1) Start"
+echo "2) Stop"
+echo "3) Restart"
+echo "4) Status"
+echo "5) Logs"
+echo "6) Follow Logs"
+echo "7) Show Config"
+echo "8) Edit Config"
+echo "0) Exit"
+echo
+read -rp "Select: " c
+
+case "$c" in
+1) start_all; pause;;
+2) stop_all; pause;;
+3) restart_all; pause;;
+4) status_all; pause;;
+5) logs_all; pause;;
+6) follow_logs;;
+7) show_config; pause;;
+8) menu_edit;;
+0) exit 0;;
+*) echo "Invalid"; sleep 1;;
+esac
+
+done

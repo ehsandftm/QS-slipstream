@@ -1,0 +1,16 @@
+[Unit]
+Description=QS Slipstream Server - Hysteria2 bridge with IP spoof downlink
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/QS-Tunnel-slip
+ExecStart=/usr/bin/python3.11 -u main_server_slip.py
+Restart=always
+RestartSec=2
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
