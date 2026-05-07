@@ -119,7 +119,8 @@ async def wan_recv():
             data, _ = await loop.sock_recvfrom(wan_socket, 65575)
         except Exception as e:
             print("wan recv error:", e)
-            raise
+            await asyncio.sleep(0.5)
+            continue
         if not data or last_h_addr is None:
             continue
         data = reverse_reassembler.add_packet(data)
@@ -150,7 +151,6 @@ async def nat_keep_alive():
                                    (fake_send_ip, fake_send_port))
         except Exception as e:
             print("nat keepalive error:", e)
-            raise
 
 
 async def send_info_loop(my_public_ip: str):

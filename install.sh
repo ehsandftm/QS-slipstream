@@ -28,6 +28,16 @@ ask() {
   fi
 }
 
+ask_required() {
+  local prompt="$1" var
+  while true; do
+    read -rp "$prompt: " var
+    [ -n "$var" ] && break
+    echo "   [!] This field is required. Please enter a value."
+  done
+  echo "$var"
+}
+
 # ─────────────────────────────────────────────
 if [ "$(id -u)" -ne 0 ]; then
   echo "[-] Please run as root"; exit 1
@@ -43,14 +53,14 @@ echo
 echo "1) Public IP of THIS local server"
 echo "   This is the IP your users' Hysteria2 app will connect to."
 echo "   Type 'ezping' or 'ipmyp' to auto-detect."
-MY_PUBLIC_IP=$(ask "   My public IP")
+MY_PUBLIC_IP=$(ask_required "   My public IP")
 echo
 
 # ── Question 2 ──────────────────────────────
 echo "2) Foreign VPS IP address"
 echo "   The remote server that runs the QS tunnel backend."
 echo "   It will spoof downlink replies as if they come from this IP."
-VPS_IP=$(ask "   Foreign VPS IP")
+VPS_IP=$(ask_required "   Foreign VPS IP")
 echo
 
 # ── Question 3 ──────────────────────────────
@@ -65,7 +75,7 @@ echo "   The domain used for the QUIC-over-DNS uplink tunnel."
 echo "   Must have an NS record pointing to your foreign VPS."
 echo "   Example: q.firmware-update-service.com"
 echo "   *** Must be the SAME domain entered during foreign VPS installation. ***"
-SLIP_DOMAIN=$(ask "   Tunnel domain")
+SLIP_DOMAIN=$(ask_required "   Tunnel domain")
 echo
 
 # ── Question 5 ──────────────────────────────

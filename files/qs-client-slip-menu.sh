@@ -272,7 +272,7 @@ case "$c" in
   echo "  Must have NS record pointing to foreign VPS."
   echo "  Current: $(svc_get_domain)"
   read -rp "New tunnel domain: " v
-  sed -i "s|-d [^ \\\\]*|-d $v|" "$SVC_FILE"
+  sed -i "s|-d [^ \\\\]*|-d ${v}|" "$SVC_FILE"
   systemctl daemon-reload
   echo "Updated. Run Restart (option 3) to apply."
   pause
@@ -292,7 +292,7 @@ case "$c" in
     echo "Cert pinning disabled."
   else
     if grep -q -- '--cert' "$SVC_FILE"; then
-      sed -i "s|--cert [^ \\\\]*|--cert $v|" "$SVC_FILE"
+      sed -i "s|--cert [^ \\\\]*|--cert ${v}|" "$SVC_FILE"
     else
       sed -i "/ExecStart=.*slipstream-client-rust/a\\  --cert $v \\\\" "$SVC_FILE"
     fi

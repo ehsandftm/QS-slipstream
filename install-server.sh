@@ -29,6 +29,16 @@ ask() {
   fi
 }
 
+ask_required() {
+  local prompt="$1" var
+  while true; do
+    read -rp "$prompt: " var
+    [ -n "$var" ] && break
+    echo "   [!] This field is required. Please enter a value."
+  done
+  echo "$var"
+}
+
 # ─────────────────────────────────────────────
 if [ "$(id -u)" -ne 0 ]; then
   echo "[-] Please run as root"; exit 1
@@ -53,7 +63,7 @@ echo "   The domain used for the QUIC-over-DNS tunnel."
 echo "   Must have an NS record pointing to THIS server."
 echo "   Example: q.firmware-update-service.com"
 echo "   *** Must be the SAME domain entered during local client installation. ***"
-SLIP_DOMAIN=$(ask "   Tunnel domain")
+SLIP_DOMAIN=$(ask_required "   Tunnel domain")
 echo
 
 # ── Question 3 ──────────────────────────────

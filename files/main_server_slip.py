@@ -8,7 +8,7 @@ with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "config_serve
 
 info_encryption_pass = hashlib.sha256(config["info_encryption_pass"].encode()).digest()
 listen_host = config.get("listen_host", "127.0.0.1")
-listen_port = int(config.get("listen_port", 5201))
+listen_port = int(config.get("listen_port", 5210))
 target_addr = (config["target_host"], int(config["target_port"]))
 fragment_chunk_size = int(config.get("fragment_chunk_size", 1100))
 TYPE_DATA, TYPE_INFO = 0x00, 0x01
