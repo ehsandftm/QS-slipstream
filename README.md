@@ -47,21 +47,46 @@ Paste the base64 cert from the foreign VPS when asked (question 7). Leave blank 
 
 ## Architecture
 
+### Uplink (client → server)
+
 ```
-[Hysteria2 App]
-      │  UDP:54322
-      ▼
-[Local: main_client_slip.py]  ←── spoofed downlink (UDP, fake src = foreign VPS IP)
-      │  TCP:5201
-      ▼
-[Local: slipstream-client-rust]
-      │  QUIC-in-DNS TXT via 8.8.8.8
-      ▼
+[Hysteria2 / VPN App]
+        │  UDP packet
+        ▼
+[Local: main_client_slip.py]
+        │  framed TCP  [2-byte len][type=DATA][payload]
+        ▼
+[Local: slipstream-client-rust  TCP:5201]
+        │  QUIC encoded inside DNS TXT queries
+        ▼
+   [Public DNS  8.8.8.8:53]
+        │  forwards to authoritative NS
+        ▼
 [Foreign VPS: slipstream-server-rust  UDP:53]
-      │  TCP:5210
-      ▼
-[Foreign VPS: main_server_slip.py]
-      │  UDP:40443
-      ▼
-[Foreign VPS: Hysteria2 / Xray backend]
+        │  decoded TCP stream
+        ▼
+[Foreign VPS: main_server_slip.py  TCP:5210]
+        │  raw UDP
+        ▼
+[Foreign VPS: Hysteria2 / Xray backend  UDP:40443]
+```
+
+### Downlink (server → client)
+
+```
+[Foreign VPS: Hysteria2 / Xray backend  UDP:40443]
+        │  UDP reply
+        ▼
+[Foreign VPS: main_server_slip.py  TCP:5210]
+        │  raw spoofed UDP packet
+        │  src IP  = foreign VPS IP  (fake, looks like normal UDP)
+        │  src port = 53
+        ▼
+         ╌╌╌╌╌╌ direct internet (no DNS, no tunnel) ╌╌╌╌╌╌
+        │
+        ▼
+[Local: main_client_slip.py  wan_socket]
+        │  reassembled via reverse_frag
+        ▼
+[Hysteria2 / VPN App]
 ```
