@@ -81,7 +81,6 @@ svc_write() {
   cert=$(svc_get_cert)
   port=$(svc_get_port)
 
-  # Only add --cert flag if a cert path is configured
   if [ -n "$cert" ] && [ "$cert" != "(none)" ]; then
     cert_line="  --cert $cert \\"
   else
@@ -180,7 +179,7 @@ show_config() {
   echo "  8) Server cert pin      = $(svc_get_cert)    (optional)"
   echo
   echo "  -- Security --"
-  echo "  9) Encryption pass      = $(get_val info_encryption_pass)    (plain text, must match Serbia item 5)"
+  echo "  9) Encryption pass      = $(get_val info_encryption_pass)    (plain text, must match foreign VPS item 5)"
 }
 
 menu_edit() {
@@ -191,8 +190,8 @@ echo
 echo "  -- Downlink (spoofed replies to your client) --"
 echo "  1) Hysteria listen port = $(get_val h_in_address | cut -d: -f2)    (your VPN app connects to this port)"
 echo "  2) My public IP         = $(get_val my_public_ip)    (this server's real public IP)"
-echo "  3) Spoof source IP      = $(get_val fake_send_ip)    (Serbia replies pretending to be this IP)"
-echo "  4) Spoof source port    = $(get_val fake_send_port)    (Serbia replies pretending to be this port)"
+echo "  3) Spoof source IP      = $(get_val fake_send_ip)    (foreign VPS replies pretending to be this IP)"
+echo "  4) Spoof source port    = $(get_val fake_send_port)    (foreign VPS replies pretending to be this port)"
 echo
 echo "  -- Uplink (QUIC tunnel through DNS) --"
 echo "  5) Uplink mode          = $(svc_get_uplink_mode)"
@@ -201,7 +200,7 @@ echo "  7) Tunnel domain        = $(svc_get_domain)"
 echo "  8) Server cert pin      = $(svc_get_cert)    (optional — leave blank = no pinning)"
 echo
 echo "  -- Security --"
-echo "  9) Encryption pass      = $(get_val info_encryption_pass)    (plain text, must match Serbia server item 5)"
+echo "  9) Encryption pass      = $(get_val info_encryption_pass)    (plain text, must match foreign VPS item 5)"
 echo
 echo "  0) Back"
 echo
@@ -215,7 +214,7 @@ case "$c" in
   pause
   ;;
 2)
-  echo "  Enter the public IP of THIS Iran server."
+  echo "  Enter the public IP of THIS local server."
   echo "  Or type: ezping  (auto-detect from ezping.ir)"
   echo "  Or type: ipmyp   (auto-detect from ipmyp.ir)"
   read -rp "New my_public_ip: " v
@@ -223,23 +222,23 @@ case "$c" in
   pause
   ;;
 3)
-  echo "  This is the IP Serbia will use as the fake sender on spoofed replies."
-  echo "  Usually the VPS IP or a nearby IP your client will accept packets from."
+  echo "  This is the IP the foreign VPS will use as the fake sender on spoofed replies."
+  echo "  Usually the foreign VPS IP or a nearby IP your client will accept packets from."
   read -rp "New spoof source IP: " v
   set_str fake_send_ip "$v"
   pause
   ;;
 4)
-  echo "  Port Serbia uses as fake sender port on spoofed replies (usually 53)."
+  echo "  Port the foreign VPS uses as fake sender port on spoofed replies (usually 53)."
   read -rp "New spoof source port: " v
   set_int fake_send_port "$v"
   pause
   ;;
 5)
-  echo "  d) DNS resolver mode  (Iran -> public DNS like 8.8.8.8 -> Serbia)"
-  echo "     Bypasses Iran blocking. Slower upload (~200-500 kbps), higher latency."
-  echo "  a) DIRECT mode        (Iran -> Serbia:53 directly)"
-  echo "     Faster upload (~1 Mbps+), lower latency. Only works if Serbia:53 is not blocked."
+  echo "  d) DNS resolver mode  (local -> public DNS like 8.8.8.8 -> foreign VPS)"
+  echo "     Bypasses local blocking. Slower upload (~200-500 kbps), higher latency."
+  echo "  a) DIRECT mode        (local -> foreign VPS:53 directly)"
+  echo "     Faster upload (~1 Mbps+), lower latency. Only works if foreign VPS:53 is not blocked."
   echo
   read -rp "Select mode [d/a]: " m
   case "$m" in
@@ -250,7 +249,7 @@ case "$c" in
       pause
       ;;
     a|A)
-      read -rp "Serbia server address (e.g. 150.40.126.106:53): " v
+      read -rp "Foreign VPS address (e.g. 1.2.3.4:53): " v
       svc_write "direct" "$v"
       echo "Switched to DIRECT mode. Run Restart (option 3) to apply."
       pause
@@ -270,7 +269,7 @@ case "$c" in
   ;;
 7)
   echo "  The DNS domain that QUIC is tunneled through."
-  echo "  Must have NS record pointing to Serbia VPS."
+  echo "  Must have NS record pointing to foreign VPS."
   echo "  Current: $(svc_get_domain)"
   read -rp "New tunnel domain: " v
   sed -i "s|-d [^ \\\\]*|-d $v|" "$SVC_FILE"
@@ -279,16 +278,15 @@ case "$c" in
   pause
   ;;
 8)
-  echo "  OPTIONAL: Serbia's TLS certificate path for QUIC identity verification."
+  echo "  OPTIONAL: Foreign VPS TLS certificate path for QUIC identity verification."
   echo "  Prevents a man-in-the-middle attack on the DNS tunnel."
-  echo "  The cert file must be copied from Serbia to this server manually."
-  echo "  Serbia cert location: /root/slipstream-certs/cert-san.pem"
+  echo "  The cert file must be copied from the foreign VPS to this server manually."
+  echo "  Foreign VPS cert location: /root/slipstream-certs/cert-san.pem"
   echo "  Leave blank to disable pinning (connection still encrypted, just not pinned)."
   echo "  Current: $(svc_get_cert)"
   echo
   read -rp "New cert path (or leave blank to disable): " v
   if [ -z "$v" ]; then
-    # Remove --cert line from service file entirely
     sed -i '/--cert /d' "$SVC_FILE"
     systemctl daemon-reload
     echo "Cert pinning disabled."
@@ -304,10 +302,10 @@ case "$c" in
   pause
   ;;
 9)
-  echo "  Plain text password shared between Iran client and Serbia server."
-  echo "  Used to encrypt the INFO packet that tells Serbia where to send"
+  echo "  Plain text password shared between local client and foreign VPS."
+  echo "  Used to encrypt the INFO packet that tells the foreign VPS where to send"
   echo "  spoofed downlink replies (your real IP + port)."
-  echo "  Same as item 5 on the Serbia server menu."
+  echo "  Same as item 5 on the foreign VPS server menu."
   echo "  Format: any plain text string, e.g: mysecretpass123"
   echo "  Leave blank = no encryption (fine for private setups)."
   read -rp "New encryption pass (or blank to clear): " v

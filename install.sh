@@ -12,7 +12,7 @@ SVC_FILE="/etc/systemd/system/slipstream-client.service"
 print_header() {
   echo
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  echo "   QS + Slipstream  —  Iran Client Installer"
+  echo "   QS + Slipstream  —  Local (Client) Installer"
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   echo
 }
@@ -40,17 +40,17 @@ echo "Press Enter to accept the default."
 echo
 
 # ── Question 1 ──────────────────────────────
-echo "1) Public IP of THIS Iran server"
+echo "1) Public IP of THIS local server"
 echo "   This is the IP your users' Hysteria2 app will connect to."
 echo "   Type 'ezping' or 'ipmyp' to auto-detect."
 MY_PUBLIC_IP=$(ask "   My public IP")
 echo
 
 # ── Question 2 ──────────────────────────────
-echo "2) Serbia (VPS) IP address"
-echo "   The server that runs the QS tunnel backend."
-echo "   Serbia will spoof downlink replies as if they come from this IP."
-SERBIA_IP=$(ask "   Serbia VPS IP")
+echo "2) Foreign VPS IP address"
+echo "   The remote server that runs the QS tunnel backend."
+echo "   It will spoof downlink replies as if they come from this IP."
+VPS_IP=$(ask "   Foreign VPS IP")
 echo
 
 # ── Question 3 ──────────────────────────────
@@ -62,43 +62,43 @@ echo
 # ── Question 4 ──────────────────────────────
 echo "4) DNS tunnel domain"
 echo "   The domain used for the QUIC-over-DNS uplink tunnel."
-echo "   Must have an NS record pointing to your Serbia VPS."
+echo "   Must have an NS record pointing to your foreign VPS."
 echo "   Example: q.firmware-update-service.com"
-echo "   *** Must be the SAME domain entered during Serbia installation. ***"
+echo "   *** Must be the SAME domain entered during foreign VPS installation. ***"
 SLIP_DOMAIN=$(ask "   Tunnel domain")
 echo
 
 # ── Question 5 ──────────────────────────────
 echo "5) Uplink mode"
 echo "   d) DNS resolver  — route through a public DNS (8.8.8.8 etc.)"
-echo "      Bypasses Iran censorship. Upload ~200-500 kbps, higher latency."
-echo "   a) Direct        — connect straight to ${SERBIA_IP}:53"
-echo "      Faster (~1 Mbps upload). Use only if Serbia port 53 is not blocked."
+echo "      Bypasses local censorship. Upload ~200-500 kbps, higher latency."
+echo "   a) Direct        — connect straight to ${VPS_IP}:53"
+echo "      Faster (~1 Mbps upload). Use only if foreign VPS port 53 is not blocked."
 read -rp "   Select mode [d/a, default: d]: " UPLINK_MODE
 UPLINK_MODE="${UPLINK_MODE:-d}"
 echo
 
 DNS_RESOLVERS=""
 if [[ "$UPLINK_MODE" =~ ^[dD]$ ]]; then
-  echo "   DNS resolvers (space-separated, e.g. 8.8.8.8:53 8.8.4.4:53)"
+  echo "   DNS resolvers (space-separated, e.g. 8.8.8.8:53 8.8.4.4:53 1.1.1.1:53)"
   DNS_RESOLVERS=$(ask "   Resolvers" "8.8.8.8:53 8.8.4.4:53 1.1.1.1:53")
 fi
 echo
 
 # ── Question 6 ──────────────────────────────
 echo "6) Encryption password  (optional)"
-echo "   Protects the INFO packet that tells Serbia where to send replies."
-echo "   Must be the SAME plain-text string on both Iran and Serbia."
+echo "   Protects the INFO packet that tells the foreign VPS where to send replies."
+echo "   Must be the SAME plain-text string on both local and foreign VPS."
 echo "   Leave blank = no encryption (fine for private setups)."
 ENC_PASS=$(ask "   Encryption pass" "")
 echo
 
 # ── Question 7 ──────────────────────────────
-echo "7) Serbia TLS certificate  (optional)"
-echo "   Paste the base64 cert printed at the end of Serbia installation."
-echo "   This pins the QUIC connection to Serbia's exact certificate."
+echo "7) Foreign VPS TLS certificate  (optional)"
+echo "   Paste the base64 cert printed at the end of foreign VPS installation."
+echo "   This pins the QUIC connection to the foreign VPS's exact certificate."
 echo "   Leave blank = still encrypted, just without certificate pinning."
-CERT_B64=$(ask "   Serbia cert (base64, or blank)" "")
+CERT_B64=$(ask "   VPS cert (base64, or blank)" "")
 echo
 
 # ─────────────────────────────────────────────
@@ -131,7 +131,6 @@ git clone --quiet --depth 1 "$REPO_URL" "$WORKDIR"
 
 # ─────────────────────────────────────────────
 echo "[+] Installing slipstream-client-rust binary..."
-# Try bundled binary from repo first, then download
 if [ -f "$WORKDIR/files/slipstream-client-rust" ]; then
   cp "$WORKDIR/files/slipstream-client-rust" "$RUST_CLIENT"
   chmod +x "$RUST_CLIENT"
@@ -148,11 +147,11 @@ fi
 # ─────────────────────────────────────────────
 echo "[+] Installing files..."
 mkdir -p "$INSTALL_DIR"
-cp "$WORKDIR/files/main_client_slip.py"   "$INSTALL_DIR/"
+cp "$WORKDIR/files/main_client_slip.py"    "$INSTALL_DIR/"
 cp "$WORKDIR/files/qs-client-slip-menu.sh" "$INSTALL_DIR/"
-cp "$WORKDIR/files/reverse_frag.py"       "$INSTALL_DIR/"
+cp "$WORKDIR/files/reverse_frag.py"        "$INSTALL_DIR/"
 rm -rf "$INSTALL_DIR/utility"
-cp -r  "$WORKDIR/files/utility"           "$INSTALL_DIR/"
+cp -r  "$WORKDIR/files/utility"            "$INSTALL_DIR/"
 chmod +x "$INSTALL_DIR/qs-client-slip-menu.sh"
 ln -sf "$INSTALL_DIR/qs-client-slip-menu.sh" /usr/local/bin/qs-client-slip
 
@@ -172,7 +171,7 @@ import json
 cfg = {
   "h_in_address":        "0.0.0.0:${HYSTERIA_PORT}",
   "my_public_ip":        """${MY_PUBLIC_IP}""",
-  "fake_send_ip":        """${SERBIA_IP}""",
+  "fake_send_ip":        """${VPS_IP}""",
   "fake_send_port":      53,
   "info_encryption_pass": """${ENC_PASS}""",
   "slipstream_host":     "127.0.0.1",
@@ -199,7 +198,7 @@ WorkingDirectory=/root
 ExecStart=${RUST_CLIENT} \\
 EOF
   if [[ "$UPLINK_MODE" =~ ^[aA]$ ]]; then
-    echo "  --authoritative ${SERBIA_IP}:53 \\"
+    echo "  --authoritative ${VPS_IP}:53 \\"
   else
     for r in $DNS_RESOLVERS; do
       echo "  -r $r \\"

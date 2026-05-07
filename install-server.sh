@@ -13,7 +13,7 @@ SVC_SLIP="/etc/systemd/system/slipstream-rust-53.service"
 print_header() {
   echo
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  echo "   QS + Slipstream  —  Serbia Server Installer"
+  echo "   QS + Slipstream  —  Foreign VPS (Server) Installer"
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   echo
 }
@@ -52,14 +52,14 @@ echo "2) DNS tunnel domain"
 echo "   The domain used for the QUIC-over-DNS tunnel."
 echo "   Must have an NS record pointing to THIS server."
 echo "   Example: q.firmware-update-service.com"
-echo "   *** Must be the SAME domain entered during Iran installation. ***"
+echo "   *** Must be the SAME domain entered during local client installation. ***"
 SLIP_DOMAIN=$(ask "   Tunnel domain")
 echo
 
 # ── Question 3 ──────────────────────────────
 echo "3) Encryption password  (optional)"
 echo "   Protects the INFO packet that tells this server where to send spoofed replies."
-echo "   Must be the SAME plain-text string on both Serbia and Iran."
+echo "   Must be the SAME plain-text string on both foreign VPS and local client."
 echo "   Leave blank = no encryption (fine for private setups)."
 ENC_PASS=$(ask "   Encryption pass" "")
 echo
@@ -109,11 +109,11 @@ fi
 # ─────────────────────────────────────────────
 echo "[+] Installing server files..."
 mkdir -p "$INSTALL_DIR"
-cp "$WORKDIR/files/main_server_slip.py"   "$INSTALL_DIR/"
+cp "$WORKDIR/files/main_server_slip.py"    "$INSTALL_DIR/"
 cp "$WORKDIR/files/qs-server-slip-menu.sh" "$INSTALL_DIR/"
-cp "$WORKDIR/files/reverse_frag.py"       "$INSTALL_DIR/"
+cp "$WORKDIR/files/reverse_frag.py"        "$INSTALL_DIR/"
 rm -rf "$INSTALL_DIR/utility"
-cp -r  "$WORKDIR/files/utility"           "$INSTALL_DIR/"
+cp -r  "$WORKDIR/files/utility"            "$INSTALL_DIR/"
 chmod +x "$INSTALL_DIR/qs-server-slip-menu.sh"
 ln -sf "$INSTALL_DIR/qs-server-slip-menu.sh" /usr/local/bin/qs-server-slip
 
@@ -199,8 +199,8 @@ echo "    NS  record:  ${SLIP_DOMAIN}          →  ser.<your-domain>"
 echo "    A   record:  ser.<your-domain>       →  <this server IP>"
 echo
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "   Serbia TLS Certificate (base64)"
-echo "   Copy this when running install.sh on Iran server"
+echo "   Foreign VPS TLS Certificate (base64)"
+echo "   Copy this when running install.sh on the local client server"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo
 base64 -w 0 "$CERT_DIR/cert-san.pem"

@@ -3,27 +3,27 @@
 QUIC-over-DNS uplink + IP spoofing downlink tunnel for bypassing censorship.
 
 - **Uplink**: QUIC inside DNS TXT queries (Slipstream) through public resolvers (8.8.8.8)
-- **Downlink**: Raw IP spoofing — Serbia sends replies as if they come directly from itself
+- **Downlink**: Raw IP spoofing — foreign VPS sends replies as if they come directly from itself
 
 ---
 
 ## Quick Install
 
-### 1. Serbia VPS (run first)
+### 1. Foreign VPS (run first)
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/ehsandftm/QS-slipstream/main/install-server.sh)
 ```
 
-At the end it prints a **base64 certificate string** — copy it, you will need it for the Iran install.
+At the end it prints a **base64 certificate string** — copy it, you will need it for the local client install.
 
-### 2. Iran Server (run after Serbia)
+### 2. Local Client Server (run after foreign VPS)
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/ehsandftm/QS-slipstream/main/install.sh)
 ```
 
-Paste the base64 cert from Serbia when asked (question 7). Leave blank to skip cert pinning.
+Paste the base64 cert from the foreign VPS when asked (question 7). Leave blank to skip cert pinning.
 
 ---
 
@@ -31,7 +31,7 @@ Paste the base64 cert from Serbia when asked (question 7). Leave blank to skip c
 
 | Type | Name | Value |
 |------|------|-------|
-| A | `ser.your-domain.com` | `<Serbia VPS IP>` |
+| A | `ser.your-domain.com` | `<Foreign VPS IP>` |
 | NS | `q.your-domain.com` | `ser.your-domain.com` |
 
 ---
@@ -40,8 +40,8 @@ Paste the base64 cert from Serbia when asked (question 7). Leave blank to skip c
 
 | Command | Side | Description |
 |---------|------|-------------|
-| `qs-client-slip` | Iran | Start/stop/config Iran client |
-| `qs-server-slip` | Serbia | Start/stop/config Serbia server |
+| `qs-client-slip` | Local client server | Start/stop/config local client |
+| `qs-server-slip` | Foreign VPS | Start/stop/config foreign VPS server |
 
 ---
 
@@ -51,17 +51,17 @@ Paste the base64 cert from Serbia when asked (question 7). Leave blank to skip c
 [Hysteria2 App]
       │  UDP:54322
       ▼
-[Iran: main_client_slip.py]  ←── spoofed downlink (UDP, fake src = Serbia IP)
+[Local: main_client_slip.py]  ←── spoofed downlink (UDP, fake src = foreign VPS IP)
       │  TCP:5201
       ▼
-[Iran: slipstream-client-rust]
+[Local: slipstream-client-rust]
       │  QUIC-in-DNS TXT via 8.8.8.8
       ▼
-[Serbia: slipstream-server-rust  UDP:53]
+[Foreign VPS: slipstream-server-rust  UDP:53]
       │  TCP:5210
       ▼
-[Serbia: main_server_slip.py]
+[Foreign VPS: main_server_slip.py]
       │  UDP:40443
       ▼
-[Serbia: Hysteria2 / Xray backend]
+[Foreign VPS: Hysteria2 / Xray backend]
 ```
