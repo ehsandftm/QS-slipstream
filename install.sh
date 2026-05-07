@@ -130,9 +130,22 @@ if ! python3.11 -c "import aiohttp" 2>/dev/null; then
 fi
 
 # ─────────────────────────────────────────────
-echo "[+] Stopping old services..."
-systemctl stop qs-slipstream slipstream-client 2>/dev/null || true
+echo "[+] Stopping and removing any old QS/slipstream services..."
+for svc in $(systemctl list-units --all --no-legend 2>/dev/null | awk '{print $1}' | grep -E 'slipstream|qs-tunnel|qs-slip|qs-client'); do
+  systemctl stop "$svc" 2>/dev/null || true
+  systemctl disable "$svc" 2>/dev/null || true
+done
+# also scan unit files on disk
+for f in /etc/systemd/system/*slipstream* /etc/systemd/system/qs-tunnel* /etc/systemd/system/qs-slip* /etc/systemd/system/qs-client*; do
+  [ -f "$f" ] || continue
+  svc=$(basename "$f")
+  systemctl stop "$svc" 2>/dev/null || true
+  systemctl disable "$svc" 2>/dev/null || true
+done
+echo "[+] Freeing ports 5201 and ${HYSTERIA_PORT}..."
 fuser -k 5201/tcp 2>/dev/null || true
+fuser -k "${HYSTERIA_PORT}/udp" 2>/dev/null || true
+systemctl daemon-reload
 
 # ─────────────────────────────────────────────
 echo "[+] Cloning repo..."
@@ -219,7 +232,7 @@ EOF
   -d ${SLIP_DOMAIN} \\
   -l 5201
 Restart=always
-RestartSec=2
+RestartSec=3
 StandardOutput=journal
 StandardError=journal
 
@@ -235,9 +248,9 @@ cp "$WORKDIR/systemd/qs-slipstream.service" /etc/systemd/system/
 echo "[+] Enabling and starting services..."
 systemctl daemon-reload
 systemctl enable slipstream-client qs-slipstream
-systemctl restart slipstream-client
-sleep 3
-systemctl restart qs-slipstream
+systemctl start slipstream-client
+sleep 4
+systemctl start qs-slipstream
 
 # ─────────────────────────────────────────────
 echo
