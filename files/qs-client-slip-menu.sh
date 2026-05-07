@@ -168,9 +168,9 @@ show_config() {
   echo
   echo "  -- Downlink (spoofed replies to your client) --"
   echo "  1) Hysteria listen port = $(get_val h_in_address | cut -d: -f2)"
-  echo "  2) My public IP         = $(get_val my_public_ip)"
-  echo "  3) Spoof source IP      = $(get_val fake_send_ip)"
-  echo "  4) Spoof source port    = $(get_val fake_send_port)"
+  echo "  2) My real public IP    = $(get_val my_public_ip)"
+  echo "  3) Downlink spoof IP    = $(get_val fake_send_ip)"
+  echo "  4) Downlink spoof port  = $(get_val fake_send_port)"
   echo
   echo "  -- Uplink (QUIC tunnel through DNS) --"
   echo "  5) Uplink mode          = $(svc_get_uplink_mode)"
@@ -189,9 +189,9 @@ echo "===== QS+Slipstream Client Config ====="
 echo
 echo "  -- Downlink (spoofed replies to your client) --"
 echo "  1) Hysteria listen port = $(get_val h_in_address | cut -d: -f2)    (your VPN app connects to this port)"
-echo "  2) My public IP         = $(get_val my_public_ip)    (this server's real public IP)"
-echo "  3) Spoof source IP      = $(get_val fake_send_ip)    (foreign VPS replies pretending to be this IP)"
-echo "  4) Spoof source port    = $(get_val fake_send_port)    (foreign VPS replies pretending to be this port)"
+echo "  2) My real public IP    = $(get_val my_public_ip)    (this server's real IP — foreign VPS sends downlink HERE)"
+echo "  3) Downlink spoof IP    = $(get_val fake_send_ip)    (fake source IP on downlink, e.g. 78.157.42.100)"
+echo "  4) Downlink spoof port  = $(get_val fake_send_port)    (fake source port on downlink, usually 53)"
 echo
 echo "  -- Uplink (QUIC tunnel through DNS) --"
 echo "  5) Uplink mode          = $(svc_get_uplink_mode)"
@@ -214,7 +214,8 @@ case "$c" in
   pause
   ;;
 2)
-  echo "  Enter the public IP of THIS local server."
+  echo "  The REAL public IP of this server."
+  echo "  The foreign VPS sends spoofed downlink packets TO this IP."
   echo "  Or type: ezping  (auto-detect from ezping.ir)"
   echo "  Or type: ipmyp   (auto-detect from ipmyp.ir)"
   read -rp "New my_public_ip: " v
@@ -222,9 +223,11 @@ case "$c" in
   pause
   ;;
 3)
-  echo "  This is the IP the foreign VPS will use as the fake sender on spoofed replies."
-  echo "  Usually the foreign VPS IP or a nearby IP your client will accept packets from."
-  read -rp "New spoof source IP: " v
+  echo "  The FAKE source IP the foreign VPS stamps on downlink packets."
+  echo "  This is NOT your server IP and NOT the foreign VPS IP."
+  echo "  Choose a trusted/local IP that won't be blocked by firewalls (e.g. 78.157.42.100)."
+  echo "  Your Hysteria2 app receives replies appearing to come FROM this IP:53."
+  read -rp "New downlink spoof IP: " v
   set_str fake_send_ip "$v"
   pause
   ;;
