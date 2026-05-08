@@ -43,6 +43,18 @@ print("Updated: $1 = $2")
 PY
 }
 
+normalize_resolvers() {
+  local input="$1" output=""
+  for r in $input; do
+    if [[ "$r" =~ :[0-9]+$ ]]; then
+      output="$output $r"
+    else
+      output="$output $r:53"
+    fi
+  done
+  echo "${output# }"  # trim leading space
+}
+
 svc_get_resolvers() {
   grep -oP '(?<=-r )\S+' "$SVC_FILE" 2>/dev/null | sed 's/\\$//' | grep -v '^$' | tr '\n' ' ' | sed 's/ $//' || echo ""
 }
@@ -246,7 +258,10 @@ case "$c" in
   read -rp "Select mode [d/a]: " m
   case "$m" in
     d|D)
-      read -rp "DNS resolvers (space-separated, e.g. 8.8.8.8:53 8.8.4.4:53 1.1.1.1:53): " v
+      echo "  Enter DNS resolvers (space-separated, e.g. 8.8.8.8 8.8.4.4 1.1.1.1)"
+      echo "  Port :53 will be added automatically if not specified."
+      read -rp "DNS resolvers: " v
+      v=$(normalize_resolvers "$v")
       svc_write "resolver" "$v"
       echo "Switched to DNS resolver mode. Run Restart (option 3) to apply."
       pause
@@ -263,9 +278,11 @@ case "$c" in
 6)
   echo "  Current: $(svc_get_resolvers)"
   echo "  These are the public DNS servers QUIC packets are routed through."
-  echo "  Examples: 8.8.8.8:53  8.8.4.4:53  1.1.1.1:53"
+  echo "  Examples: 8.8.8.8  8.8.4.4  1.1.1.1"
+  echo "  Port :53 will be added automatically if not specified."
   echo "  (Only applies in DNS resolver mode)"
   read -rp "New resolvers (space-separated): " v
+  v=$(normalize_resolvers "$v")
   svc_write "resolver" "$v"
   echo "Updated. Run Restart (option 3) to apply."
   pause

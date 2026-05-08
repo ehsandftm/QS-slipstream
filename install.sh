@@ -101,8 +101,19 @@ echo
 
 DNS_RESOLVERS=""
 if [[ "$UPLINK_MODE" =~ ^[dD]$ ]]; then
-  echo "   DNS resolvers (space-separated, e.g. 8.8.8.8:53 8.8.4.4:53 1.1.1.1:53)"
-  DNS_RESOLVERS=$(ask "   Resolvers" "8.8.8.8:53 8.8.4.4:53 1.1.1.1:53")
+  echo "   DNS resolvers (space-separated, e.g. 8.8.8.8 8.8.4.4 1.1.1.1)"
+  echo "   Port :53 will be added automatically if not specified."
+  RAW_RESOLVERS=$(ask "   Resolvers" "8.8.8.8 8.8.4.4 1.1.1.1")
+  # Auto-append :53 to IPs without port
+  DNS_RESOLVERS=""
+  for r in $RAW_RESOLVERS; do
+    if [[ "$r" =~ :[0-9]+$ ]]; then
+      DNS_RESOLVERS="$DNS_RESOLVERS $r"
+    else
+      DNS_RESOLVERS="$DNS_RESOLVERS $r:53"
+    fi
+  done
+  DNS_RESOLVERS="${DNS_RESOLVERS# }"  # trim leading space
 fi
 echo
 
