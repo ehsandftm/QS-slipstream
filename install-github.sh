@@ -6,7 +6,7 @@ set -e
 
 GITHUB_REPO="ehsandftm/QS-slipstream"
 GITHUB_RAW="https://raw.githubusercontent.com/${GITHUB_REPO}/main"
-BINARY_URL="${GITHUB_RAW}/binaries/slipstream-client-rust"
+BINARY_URL="https://github.com/net2share/slipstream-rust-build/releases/download/v2026.04.22.1/slipstream-client-linux-amd64"
 CERT_URL="${GITHUB_RAW}/cert-serbia.pem"
 INSTALL_SCRIPT_URL="${GITHUB_RAW}/install-prebuilt.sh"
 
@@ -34,15 +34,17 @@ echo "[+] Creating working directory..."
 rm -rf "$WORKDIR"
 mkdir -p "$WORKDIR"
 
-echo "[+] Downloading slipstream-client-rust from GitHub..."
+echo "[+] Downloading slipstream-client-rust binary..."
+echo "    Source: net2share/slipstream-rust-build (official release)"
 if ! curl -fsSL "$BINARY_URL" -o "$BINARY_PATH"; then
-  echo "[!] ERROR: Failed to download binary from GitHub"
+  echo "[!] ERROR: Failed to download binary"
   echo "    URL: $BINARY_URL"
   echo ""
-  echo "    Make sure you've uploaded the binary to your repo:"
-  echo "    1. Download: wget https://github.com/net2share/slipstream-rust-build/releases/download/v2026.04.22.1/slipstream-client-linux-amd64 -O slipstream-client-rust"
-  echo "    2. Upload to repo: git add binaries/slipstream-client-rust && git commit -m 'Add binary' && git push"
+  echo "    This might mean:"
+  echo "    1. GitHub releases are blocked in your region"
+  echo "    2. Network connectivity issue"
   echo ""
+  echo "    Fallback: Use Telegram method instead"
   exit 1
 fi
 

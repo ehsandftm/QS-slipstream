@@ -1,34 +1,12 @@
 # Install from GitHub (Iran-Friendly Method)
 
-**Use this when GitHub is accessible but other sites are blocked.**
+**Use this when GitHub is accessible but other sites might be blocked.**
+
+**NO laptop needed!** Everything downloads directly from GitHub/releases.
 
 ---
 
-## Step 1: Upload Binary to Your GitHub Repo
-
-**On your laptop:**
-
-```bash
-# Download binary
-wget https://github.com/net2share/slipstream-rust-build/releases/download/v2026.04.22.1/slipstream-client-linux-amd64 -O slipstream-client-rust
-chmod +x slipstream-client-rust
-
-# Add to your QS-slipstream repo
-cd QS-slipstream-main
-mkdir -p binaries
-cp /path/to/slipstream-client-rust binaries/
-
-# Commit and push
-git add binaries/slipstream-client-rust
-git commit -m "Add pre-built slipstream binary"
-git push origin main
-```
-
-**Note:** The `cert-serbia.pem` is already in the repo!
-
----
-
-## Step 2: One-Line Install on Iran Server
+## One-Line Install on Iran Server
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ehsandftm/QS-slipstream/main/install-github.sh | bash
@@ -41,10 +19,13 @@ wget -qO- https://raw.githubusercontent.com/ehsandftm/QS-slipstream/main/install
 ```
 
 That's it! The installer will:
-- ✅ Download binary from your GitHub repo
-- ✅ Download Serbia certificate from your GitHub repo  
+- ✅ Download binary from **official release** (net2share/slipstream-rust-build)
+- ✅ Download Serbia certificate from **your GitHub repo**
+- ✅ Download all Python files from **your GitHub repo**
 - ✅ Install and configure everything
 - ✅ Start services automatically
+
+**No Rust compiler needed! No laptop needed!**
 
 ---
 
@@ -90,11 +71,13 @@ curl -I https://raw.githubusercontent.com/ehsandftm/QS-slipstream/main/README.md
 # If blocked, use VPN temporarily or fallback to Telegram method
 ```
 
-**Binary not found in repo:**
+**Binary download fails:**
 
-Make sure you completed Step 1 and pushed the binary to GitHub!
+The binary downloads from the official release. If it fails:
 
 ```bash
-# Verify binary exists on GitHub
-curl -I https://raw.githubusercontent.com/ehsandftm/QS-slipstream/main/binaries/slipstream-client-rust
+# Test if GitHub releases are accessible
+curl -I https://github.com/net2share/slipstream-rust-build/releases/download/v2026.04.22.1/slipstream-client-linux-amd64
+
+# If blocked, fallback to Telegram method
 ```
